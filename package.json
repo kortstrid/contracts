@@ -1,8 +1,8 @@
 {
   "name": "kortstrid-contracts",
   "version": "1.0.0",
-  "description": "Contract repository for kortstrid",
-  "author": "kortstrid",
+  "description": "Contract repository for Kortstrid",
+  "author": "DirtyCajunRice",
   "license": "GPL-V3",
   "type": "module",
   "repository": "kortstrid/contracts",
