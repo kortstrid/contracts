@@ -20,7 +20,7 @@ const settings = {
   },
 }
 
-const compilers = ["0.8.16", "0.8.9", "0.8.2", "0.6.0"].map(version => ({ version, settings }));
+const compilers = ["0.8.17", "0.6.0"].map(version => ({ version, settings }));
 
 const networks = GetNetworks([process.env.PRIVATE_KEY])
 
@@ -29,6 +29,15 @@ const config: HardhatUserConfig = {
   networks,
   etherscan: {
     apiKey: {
+      harmony: 'not needed',
+      harmonyTest: 'not needed',
+      optimisticEthereum: process.env.OPTIMISTIC_API_KEY || '',
+      polygon: process.env.POLYGONSCAN_API_KEY || '',
+      arbitrumOne: process.env.ARBISCAN_API_KEY || '',
+      opera: process.env.FTMSCAN_API_KEY || '',
+      avalanche: process.env.SNOWTRACE_API_KEY || '',
+      cronos: process.env.CRONOSCAN_API_KEY || '',
+      boba: 'not needed'
     },
     customChains: GetEtherscanCustomChains()
   }
