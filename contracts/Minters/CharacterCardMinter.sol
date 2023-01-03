@@ -38,7 +38,6 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
     address public treasury;
 
     uint256[] private _classes;
-    uint256[] private _regions;
 
     CountersUpgradeable.Counter private _counter;
 
@@ -106,10 +105,10 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
     }
 
     function rollRegion(uint256[] memory rand) internal view returns (Region memory) {
-        uint256[] memory regions = _regions;
+        uint256 roll = rand[3] % 100;
         return Region({
             id: regions[rand[2] % regions.length],
-            variant: (rand[3] % 3) + 1
+            variant: roll < 6 ? 1 : roll < 18 ? 2 : 3
         });
     }
 
@@ -117,31 +116,66 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
     // Internal
     //
 
-    function rollStrengths(Rarity rarity, uint256[] memory rand) internal pure returns (Strengths memory) {
+    function rollStrengths(uint256[] memory rand) internal pure returns (Strengths memory) {
         // NOTE: Only accounts for common / uncommon as we should not be fresh minting Rare+;
-        uint256 min = rarity == Rarity.Common ? 1 : 15;
-        uint256 max = rarity == Rarity.Common ? 20 : 30;
+
         return Strengths({
-            top: (rand[4] % (max-min)) + min,
-            right: (rand[5] % (max-min)) + min,
-            bottom: (rand[6] % (max-min)) + min,
-            left: (rand[7] % (max-min)) + min
+            top: rollStrength(rand[4]),
+            right: rollStrength(rand[5]),
+            bottom: rollStrength(rand[6]),
+            left: rollStrength(rand[7])
         });
     }
 
-    function rollModifiers(Rarity rarity, uint256[] memory rand) internal pure returns (Modifiers memory) {
+    function rollStrength(uint256 rand) internal pure returns (uint256) {
+        uint256 roll = rand % 1000;
+        uint256 min = 1;
+        if (roll < 125) {
+            return 1;
+        }
+        roll -= 125;
+        min += 1;
+        if (roll < 400) {
+            return (roll % 4) + min;
+        }
+        min += 4;
+        roll -= 400;
+        if (roll < 250) {
+            return (roll % 5) + min;
+        }
+        min += 5;
+        roll -= 250;
+        if (roll < 125) {
+            return (roll % 5) + min;
+        }
+        min += 5;
+        roll -= 125;
+        return (roll % 5) + min;
+    }
+
+    function rollModifiers(uint256[] memory rand) internal pure returns (Modifiers memory) {
         return Modifiers({
-            damage: rollModifier(rand, 8, 1),
+            damage: rollModifier(true, rand, 8, 1),
             // NOTE: Only accounts for common / uncommon as we should not be fresh minting Rare+;
-            weakness: rollModifier(rand, 9, rarity == Rarity.Common ? 3 : 2),
+            weakness: rollModifier(false, rand, 9, 3),
             defense: new uint256[](0)
         });
     }
 
-    function rollModifier(uint256[] memory rand, uint256 first, uint256 count) internal pure returns (uint256[] memory) {
+    function rollModifier(
+        bool damage,
+        uint256[] memory rand,
+        uint256 first,
+        uint256 count
+    ) internal pure returns (uint256[] memory) {
         uint256[] memory results = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            results[i] = rand[first+i] % 8;
+        if (damage) {
+            uint256 r = rand[0] % 100;
+            results[0] = r < 10 ? 0 : r < 20 ? 1 : r < 53 ? 2 : r < 58 ? 3 : r < 84 ? 4 : r < 90 ? 5 : r < 95 ? 6 : 7;
+        } else {
+            for (uint256 i = 0; i < count; i++) {
+                results[i] = rand[first+i] % 8;
+            }
         }
         return results;
     }
@@ -182,9 +216,5 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
 
     function setClasses(uint256[] memory classes) external onlyAdmin {
         _classes = classes;
-    }
-
-    function setRegions(uint256[] memory regions) external onlyAdmin {
-        _regions = regions;
     }
 }
