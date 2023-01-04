@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-V3
 pragma solidity ^0.8.17;
 
-interface ICharacterCard {
+interface ICard {
     enum Rarity { Common, Uncommon, Rare, Legendary, Epic, Supreme }
 
     struct Region {
@@ -23,7 +23,7 @@ interface ICharacterCard {
     }
 
     struct Visual {
-        uint256 class;
+        uint256 character;
         Region region;
     }
 

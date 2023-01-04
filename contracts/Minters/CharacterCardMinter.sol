@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableMapUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -13,31 +14,25 @@ import "@dirtycajunrice/contracts/third-party/boba/turing/TuringClient.sol";
 import "@dirtycajunrice/contracts/utils/access/StandardAccessControl.sol";
 import "@dirtycajunrice/contracts/utils/math/Numbers.sol";
 
-import "../Cards/Character/ICharacterCard.sol";
+import "../Cards/Character/ICard.sol";
 import "../utils/Allowlist.sol";
 
 /**
 * @title Kortstrid Character Card Minter v1.0.0
 * @author @DirtyCajunRice
 */
-contract CharacterCardMinter is Initializable, ICharacterCard, PausableUpgradeable, StandardAccessControl,
+contract CharacterCardMinter is Initializable, ICard, PausableUpgradeable, StandardAccessControl,
 ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
     // libraries
-    using CountersUpgradeable for CountersUpgradeable.Counter;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableMapUpgradeable for EnumerableMapUpgradeable.UintToUintMap;
+    using CountersUpgradeable for CountersUpgradeable.Counter;
     using Numbers for uint256;
-    // constants
-
-    // enums/structs
-
 
     // public vars
     uint256 public startTime;
     uint256 public price;
-
     address public treasury;
-
-    uint256[] private _classes;
 
     CountersUpgradeable.Counter private _counter;
 
@@ -84,46 +79,58 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
             generation: 0,
             rarity: rarity,
             visual: Visual({
-                class: rollClass(chunks[1]),
+                character: rollCharacter(chunks),
                 region: rollRegion(chunks)
             }),
             battle: Battle({
-                strengths: rollStrengths(rarity, chunks),
-                modifiers: rollModifiers(rarity, chunks),
-                elements: rollElement(rarity, chunks[12])
+                strengths: rollStrengths(chunks),
+                modifiers: rollModifiers(chunks),
+                elements: new uint256[](0)
             })
         });
 
     }
-    function rollRarity(uint256 rand) internal pure returns (Rarity) {
-        return rand % 100 >= 90 ? Rarity.Uncommon : Rarity.Common;
-    }
 
-    function rollClass(uint256 rand) internal view returns (uint256) {
-        uint256[] memory classes = _classes;
-        return classes[rand % _classes.length];
-    }
-
-    function rollRegion(uint256[] memory rand) internal view returns (Region memory) {
-        uint256 roll = rand[3] % 100;
-        return Region({
-            id: regions[rand[2] % regions.length],
-            variant: roll < 6 ? 1 : roll < 18 ? 2 : 3
-        });
-    }
 
     //
     // Internal
     //
 
+    function rollRarity(uint256 rand) internal pure returns (Rarity) {
+        return rand % 100 >= 90 ? Rarity.Uncommon : Rarity.Common;
+    }
+
+    function rollCharacter(uint256[] memory rand) internal pure returns (uint256) {
+        uint256 charCount = 0;
+        uint256 category = rand[1] % 100;
+        uint8[8] memory weights = [5, 6, 26, 27, 28, 58, 88, 100];
+        uint8[8] memory counts = [7, 4, 11, 10, 6, 37, 15, 36];
+
+        for (uint8 i = 0; i < weights.length; i++) {
+            if (category < weights[i]) {
+                return (rand[2] % counts[i]) + charCount;
+            }
+            charCount += counts[i];
+        }
+        revert("CharacterCardMinter::Error rolling character id");
+    }
+
+    function rollRegion(uint256[] memory rand) internal pure returns (Region memory) {
+        uint256 roll = rand[3] % 100;
+        return Region({
+            id: rand[4] % 12,
+            variant: roll < 6 ? 1 : roll < 18 ? 2 : 3
+        });
+    }
+
     function rollStrengths(uint256[] memory rand) internal pure returns (Strengths memory) {
         // NOTE: Only accounts for common / uncommon as we should not be fresh minting Rare+;
 
         return Strengths({
-            top: rollStrength(rand[4]),
-            right: rollStrength(rand[5]),
-            bottom: rollStrength(rand[6]),
-            left: rollStrength(rand[7])
+            top: rollStrength(rand[5]),
+            right: rollStrength(rand[6]),
+            bottom: rollStrength(rand[7]),
+            left: rollStrength(rand[8])
         });
     }
 
@@ -155,9 +162,9 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
 
     function rollModifiers(uint256[] memory rand) internal pure returns (Modifiers memory) {
         return Modifiers({
-            damage: rollModifier(true, rand, 8, 1),
+            damage: rollModifier(true, rand, 9, 1),
             // NOTE: Only accounts for common / uncommon as we should not be fresh minting Rare+;
-            weakness: rollModifier(false, rand, 9, 3),
+            weakness: rollModifier(false, rand, 10, 3),
             defense: new uint256[](0)
         });
     }
@@ -170,7 +177,7 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
     ) internal pure returns (uint256[] memory) {
         uint256[] memory results = new uint256[](count);
         if (damage) {
-            uint256 r = rand[0] % 100;
+            uint256 r = rand[first] % 100;
             results[0] = r < 10 ? 0 : r < 20 ? 1 : r < 53 ? 2 : r < 58 ? 3 : r < 84 ? 4 : r < 90 ? 5 : r < 95 ? 6 : 7;
         } else {
             for (uint256 i = 0; i < count; i++) {
@@ -178,15 +185,6 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
             }
         }
         return results;
-    }
-
-    function rollElement(Rarity rarity, uint256 rand) internal pure returns (uint256[] memory) {
-        if (rarity == Rarity.Common) {
-            return new uint256[](0);
-        }
-        uint256[] memory elements = new uint256[](1);
-        elements[0] = rand % 12;
-        return elements ;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override onlyAdmin {}
@@ -212,9 +210,5 @@ ReentrancyGuardUpgradeable, Allowlist, BobaL2TuringClient, UUPSUpgradeable {
 
     function setPrice(uint256 _price) external onlyAdmin {
         price = _price;
-    }
-
-    function setClasses(uint256[] memory classes) external onlyAdmin {
-        _classes = classes;
     }
 }

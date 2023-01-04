@@ -14,14 +14,14 @@ import "@dirtycajunrice/contracts/utils/access/StandardAccessControl.sol";
 import "@dirtycajunrice/contracts/utils/structs/Attributes.sol";
 import "@dirtycajunrice/contracts/utils/TokenMetadata.sol";
 
-import "./ICharacterCard.sol";
+import "./ICard.sol";
 
 
 /**
 * @title Kortstrid Character Card v1.0.0
 * @author @DirtyCajunRice
 */
-contract CharacterCard is Initializable, ICharacterCard, ERC721EnumerableV2, ERC721BurnableV2, ERC721URITokenJSON,
+contract Card is Initializable, ICard, ERC721EnumerableV2, ERC721BurnableV2, ERC721URITokenJSON,
 IStandardERC721, StandardAccessControl, PausableUpgradeable, UUPSUpgradeable {
     // libraries
     using StringsUpgradeable for uint256;
@@ -65,7 +65,7 @@ IStandardERC721, StandardAccessControl, PausableUpgradeable, UUPSUpgradeable {
             generation: _attributes.getValue(tokenId, 1, 0),
             rarity: rarity,
             visual: Visual({
-                class: _attributes.getValue(tokenId, 2, 0),
+                character: _attributes.getValue(tokenId, 2, 0),
                 region: Region({
                     id: _attributes.getValue(tokenId, 2, 1),
                     variant: _attributes.getValue(tokenId, 2, 2)
@@ -108,7 +108,7 @@ IStandardERC721, StandardAccessControl, PausableUpgradeable, UUPSUpgradeable {
 
         return makeMetadataJSON(
             card.tokenId,
-            _attributes.getSkillName(2, card.visual.class),
+            _attributes.getSkillName(2, card.visual.character),
             'Kortstrid Character Card',
             attributes
         );
@@ -130,7 +130,7 @@ IStandardERC721, StandardAccessControl, PausableUpgradeable, UUPSUpgradeable {
         _attributes.setValue(character.tokenId, 1, 0, character.generation);
         _attributes.setValue(character.tokenId, 1, 1, uint256(character.rarity));
         // visual
-        _attributes.setValue(character.tokenId, 2, 0, character.visual.class);
+        _attributes.setValue(character.tokenId, 2, 0, character.visual.character);
         _attributes.setValue(character.tokenId, 2, 1, character.visual.region.id);
         _attributes.setValue(character.tokenId, 2, 2, character.visual.region.variant);
         // battle
@@ -198,7 +198,7 @@ IStandardERC721, StandardAccessControl, PausableUpgradeable, UUPSUpgradeable {
         IERC165Upgradeable
     ) returns (bool)
     {
-        return type(ICharacterCard).interfaceId == interfaceId || super.supportsInterface(interfaceId);
+        return type(ICard).interfaceId == interfaceId || super.supportsInterface(interfaceId);
     }
 
     function _beforeTokenTransfer(
